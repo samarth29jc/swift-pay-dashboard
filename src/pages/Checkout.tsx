@@ -35,9 +35,6 @@ const Checkout = () => {
         currency: data.currency
       };
       
-      // For demo purposes, we'll simulate a backend API call
-      console.log('Sending payment data to server:', paymentData);
-      
       // Add transaction to context with pending status
       const transactionId = addTransaction(paymentData);
       
@@ -45,11 +42,40 @@ const Checkout = () => {
         description: 'Your payment is being processed'
       });
       
-      // Simulate API response delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Redirect to success page (in a real app, you'd redirect to the URL from API response)
-      navigate('/');
+      // Make actual API call to vancipay.com
+      try {
+        const response = await fetch('https://api.vancipay.com/pay', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(paymentData)
+        });
+        
+        if (response.ok) {
+          const responseData = await response.json();
+          
+          // In a real implementation, this would handle the redirect URL
+          // For now, we'll simulate success and redirect to the payment status page
+          updateTransactionStatus(transactionId, 'success');
+          
+          // If there was a redirectUrl in the response, we would use:
+          // window.location.href = responseData.redirectUrl;
+          
+          // For this implementation, we'll redirect to our internal status page
+          navigate(`/payment-status/${transactionId}/success`);
+        } else {
+          // Handle API error
+          console.error('Payment API error:', await response.text());
+          updateTransactionStatus(transactionId, 'failed');
+          navigate(`/payment-status/${transactionId}/failed`);
+        }
+      } catch (error) {
+        // Handle fetch errors (network issues, CORS, etc.)
+        console.error('Payment fetch error:', error);
+        updateTransactionStatus(transactionId, 'failed');
+        navigate(`/payment-status/${transactionId}/failed`);
+      }
     } catch (error) {
       console.error('Payment processing error:', error);
       toast.error('Payment failed', {
