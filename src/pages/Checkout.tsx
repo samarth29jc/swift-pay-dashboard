@@ -1,0 +1,144 @@
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Header } from '@/components/Header';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardForm } from '@/components/CardForm';
+import { PaymentIframe } from '@/components/PaymentIframe';
+import { usePayment } from '@/context/PaymentContext';
+import { generateOrderId } from '@/lib/card-validation';
+import { toast } from 'sonner';
+import { Check, CreditCard, Layout } from 'lucide-react';
+
+const Checkout = () => {
+  const navigate = useNavigate();
+  const { addTransaction, updateTransactionStatus } = usePayment();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handle server-to-server payment submission
+  const handleS2SSubmit = async (data: any) => {
+    setIsSubmitting(true);
+    try {
+      // Generate a random order ID
+      const orderId = generateOrderId();
+      
+      // Prepare payment data for API
+      const paymentData = {
+        orderId,
+        cardHolderName: data.cardHolderName,
+        cardNumber: data.cardNumber,
+        expiryMonth: data.expiryMonth,
+        expiryYear: data.expiryYear,
+        cardCVC: data.cardCVC,
+        amount: parseFloat(data.amount),
+        currency: data.currency
+      };
+      
+      // For demo purposes, we'll simulate a backend API call
+      console.log('Sending payment data to server:', paymentData);
+      
+      // Add transaction to context with pending status
+      const transactionId = addTransaction(paymentData);
+      
+      toast.success('Payment submitted', {
+        description: 'Your payment is being processed'
+      });
+      
+      // Simulate API response delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Redirect to success page (in a real app, you'd redirect to the URL from API response)
+      navigate('/');
+    } catch (error) {
+      console.error('Payment processing error:', error);
+      toast.error('Payment failed', {
+        description: 'There was an error processing your payment'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle iframe payment status updates
+  const handleIframePaymentStatus = (status: 'success' | 'failed' | 'pending', orderId: string) => {
+    // Create a transaction from the iframe payment
+    const transactionId = addTransaction({
+      cardHolderName: 'Iframe Payment',
+      cardNumber: '4111111111111111', // Placeholder data
+      expiryMonth: '12',
+      expiryYear: '2025',
+      cardCVC: '123',
+      amount: 10.00, // Default amount for demo
+      currency: 'USD'
+    });
+    
+    // Update the transaction status based on iframe response
+    updateTransactionStatus(transactionId, status);
+    
+    if (status === 'success') {
+      toast.success('Payment successful', {
+        description: 'Your payment has been processed successfully'
+      });
+    } else if (status === 'failed') {
+      toast.error('Payment failed', {
+        description: 'There was an error processing your payment'
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Checkout</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Choose a payment method to complete your purchase
+          </p>
+        </div>
+        
+        <Tabs defaultValue="s2s" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="s2s" className="flex items-center">
+              <Layout className="h-4 w-4 mr-2" />
+              Server-to-Server
+            </TabsTrigger>
+            <TabsTrigger value="iframe" className="flex items-center">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Iframe Integration
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="s2s" className="animate-fade-in">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Details</CardTitle>
+                <CardDescription>
+                  Enter your card information to complete the payment
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CardForm onSubmit={handleS2SSubmit} isSubmitting={isSubmitting} />
+                
+                <div className="mt-6">
+                  <p className="text-xs text-gray-500 flex items-start">
+                    <Check className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+                    Your card details are securely processed. We don't store your full card number.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="iframe" className="animate-fade-in">
+            <PaymentIframe onPaymentStatus={handleIframePaymentStatus} />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+};
+
+export default Checkout;
