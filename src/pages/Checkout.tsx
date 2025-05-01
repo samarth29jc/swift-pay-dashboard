@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
@@ -87,16 +86,19 @@ const Checkout = () => {
     }
   };
 
-  // Function to prepare data for the iframe
-  const prepareIframeData = (data: any) => {
-    setPaymentData({
-      cardholderName: data.cardHolderName,
-      cardNumber: data.cardNumber,
-      expiryMonth: data.expiryMonth,
-      expiryYear: data.expiryYear,
-      cardCVC: data.cardCVC,
-      amount: parseFloat(data.amount),
-      currency: data.currency
+  // Function to prepare data for the iframe - modified to return a Promise
+  const prepareIframeData = async (data: any): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      setPaymentData({
+        cardholderName: data.cardHolderName,
+        cardNumber: data.cardNumber,
+        expiryMonth: data.expiryMonth,
+        expiryYear: data.expiryYear,
+        cardCVC: data.cardCVC,
+        amount: parseFloat(data.amount),
+        currency: data.currency
+      });
+      resolve();
     });
   };
 
