@@ -28,8 +28,66 @@ interface PaymentContextType {
 
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
 
+// Simulated WebSocket for demo purposes
+class SimulatedWebSocket {
+  private callbacks: Map<string, (data: any) => void> = new Map();
+  private interval: ReturnType<typeof setInterval> | null = null;
+  private transactions: Transaction[] = [];
+
+  connect() {
+    console.log('WebSocket connected');
+    // Simulate receiving updates every 2-5 seconds
+    this.interval = setInterval(() => {
+      if (this.transactions.length > 0) {
+        const pendingTransactions = this.transactions.filter(t => t.status === 'pending');
+        if (pendingTransactions.length > 0) {
+          const randomIndex = Math.floor(Math.random() * pendingTransactions.length);
+          const transaction = pendingTransactions[randomIndex];
+          const newStatus: TransactionStatus = Math.random() > 0.3 ? 'success' : 'failed';
+          
+          this.sendEvent('transaction_updated', {
+            id: transaction.id,
+            status: newStatus,
+            updatedAt: new Date()
+          });
+        }
+      }
+    }, 2000 + Math.floor(Math.random() * 3000));
+  }
+
+  disconnect() {
+    if (this.interval) {
+      clearInterval(this.interval);
+      this.interval = null;
+    }
+    console.log('WebSocket disconnected');
+  }
+
+  setTransactions(transactions: Transaction[]) {
+    this.transactions = transactions;
+  }
+
+  on(eventName: string, callback: (data: any) => void) {
+    this.callbacks.set(eventName, callback);
+    return this;
+  }
+
+  off(eventName: string) {
+    this.callbacks.delete(eventName);
+    return this;
+  }
+
+  sendEvent(eventName: string, data: any) {
+    const callback = this.callbacks.get(eventName);
+    if (callback) {
+      setTimeout(() => callback(data), 0);
+    }
+  }
+}
+
 export function PaymentProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [websocket] = useState(() => new SimulatedWebSocket());
 
   // Load transactions from localStorage on initial render
   useEffect(() => {
@@ -53,32 +111,27 @@ export function PaymentProvider({ children }: { children: ReactNode }) {
   // Save transactions to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    websocket.setTransactions(transactions);
+  }, [transactions, websocket]);
 
-  // Auto-update pending transactions randomly for demo purposes
+  // Setup WebSocket for real-time updates
   useEffect(() => {
-    const pendingTransactions = transactions.filter(t => t.status === 'pending');
+    websocket.connect();
     
-    if (pendingTransactions.length === 0) return;
-    
-    const randomUpdateInterval = setInterval(() => {
-      const randomIdx = Math.floor(Math.random() * pendingTransactions.length);
-      const transactionToUpdate = pendingTransactions[randomIdx];
+    websocket.on('transaction_updated', (data) => {
+      updateTransactionStatus(data.id, data.status);
       
-      if (transactionToUpdate) {
-        const newStatus: TransactionStatus = Math.random() > 0.3 ? 'success' : 'failed';
-        updateTransactionStatus(transactionToUpdate.id, newStatus);
-        
-        // Show toast notification for status change
-        toast(`Payment ${newStatus}`, {
-          description: `Transaction ${transactionToUpdate.id.slice(0, 8)} status updated to ${newStatus}`,
-          position: "bottom-right",
-        });
-      }
-    }, 6000 + Math.random() * 10000); // Random interval between 6-16 seconds
+      // Show toast notification for status change
+      toast(`Payment ${data.status}`, {
+        description: `Transaction ${data.id.slice(0, 8)} status updated to ${data.status}`,
+        position: "bottom-right",
+      });
+    });
     
-    return () => clearInterval(randomUpdateInterval);
-  }, [transactions]);
+    return () => {
+      websocket.disconnect();
+    };
+  }, [websocket]);
 
   // Add a new transaction
   const addTransaction = (transaction: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'status'>): string => {

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -16,10 +17,11 @@ import {
   validateCardNumber, 
   validateExpiryDate, 
   validateCVV, 
-  formatCardNumber 
+  formatCardNumber,
+  maskCardNumber
 } from '@/lib/card-validation';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, EyeIcon, EyeOffIcon } from 'lucide-react';
 
 // Form schema with validation
 const cardSchema = z.object({
@@ -54,6 +56,9 @@ interface CardFormProps {
 
 export function CardForm({ onSubmit, isSubmitting = false }: CardFormProps) {
   const [formattedCardNumber, setFormattedCardNumber] = useState('');
+  const [showCardNumber, setShowCardNumber] = useState(false);
+  const [showCVV, setShowCVV] = useState(false);
+  const [cardType, setCardType] = useState('');
   
   const form = useForm<CardFormValues>({
     resolver: zodResolver(cardSchema),
@@ -68,11 +73,29 @@ export function CardForm({ onSubmit, isSubmitting = false }: CardFormProps) {
     },
   });
 
+  const detectCardType = (number: string) => {
+    // Basic card type detection based on IIN ranges
+    const cleanNumber = number.replace(/\D/g, '');
+    if (cleanNumber.startsWith('4')) {
+      return 'Visa';
+    } else if (/^5[1-5]/.test(cleanNumber)) {
+      return 'Mastercard';
+    } else if (/^3[47]/.test(cleanNumber)) {
+      return 'American Express';
+    } else if (/^6(?:011|5)/.test(cleanNumber)) {
+      return 'Discover';
+    }
+    return '';
+  };
+
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '').slice(0, 16);
     const formatted = formatCardNumber(value);
     setFormattedCardNumber(formatted);
     form.setValue('cardNumber', value);
+    
+    // Detect and set card type
+    setCardType(detectCardType(value));
   };
 
   const handleSubmission = async (values: CardFormValues) => {
@@ -108,16 +131,26 @@ export function CardForm({ onSubmit, isSubmitting = false }: CardFormProps) {
           name="cardNumber"
           render={({ field: { onChange, ...rest } }) => (
             <FormItem>
-              <FormLabel>Card Number</FormLabel>
+              <FormLabel>Card Number {cardType && <span className="text-sm text-muted-foreground ml-2">({cardType})</span>}</FormLabel>
               <FormControl>
-                <Input 
-                  className="card-number-input"
-                  placeholder="1234 5678 9012 3456" 
-                  value={formattedCardNumber} 
-                  onChange={handleCardNumberChange}
-                  maxLength={19}
-                  {...rest}
-                />
+                <div className="relative">
+                  <Input 
+                    className="card-number-input pr-10"
+                    placeholder="1234 5678 9012 3456" 
+                    value={showCardNumber ? formattedCardNumber : maskCardNumber(formattedCardNumber)}
+                    onChange={handleCardNumberChange}
+                    maxLength={19}
+                    {...rest}
+                  />
+                  <button 
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowCardNumber(!showCardNumber)}
+                    tabIndex={-1}
+                  >
+                    {showCardNumber ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                  </button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -174,16 +207,26 @@ export function CardForm({ onSubmit, isSubmitting = false }: CardFormProps) {
               <FormItem>
                 <FormLabel>CVV</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="password" 
-                    placeholder="123" 
-                    maxLength={4}
-                    {...field}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                      field.onChange(value);
-                    }}
-                  />
+                  <div className="relative">
+                    <Input 
+                      type={showCVV ? "text" : "password"} 
+                      placeholder="123" 
+                      maxLength={4}
+                      {...field}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        field.onChange(value);
+                      }}
+                    />
+                    <button 
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      onClick={() => setShowCVV(!showCVV)}
+                      tabIndex={-1}
+                    >
+                      {showCVV ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

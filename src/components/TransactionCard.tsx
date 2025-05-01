@@ -38,6 +38,12 @@ export function TransactionCard({ transaction }: TransactionCardProps) {
     currency
   }).format(amount);
 
+  // Always mask the card number using our utility function
+  const maskedCardNumber = maskCardNumber(cardNumber);
+  
+  // Mask the CVV completely
+  const maskedCVV = '•••';
+
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md border-gray-200">
       <CardContent className="p-6">
@@ -49,8 +55,11 @@ export function TransactionCard({ transaction }: TransactionCardProps) {
             </div>
             
             <div>
-              <p className="text-base font-mono card-mask">{maskCardNumber(cardNumber)}</p>
-              <p className="text-xs text-gray-500">Expires: {expiryMonth}/{expiryYear}</p>
+              <p className="text-base font-mono card-mask">{maskedCardNumber}</p>
+              <div className="flex space-x-4 text-xs text-gray-500">
+                <p>Expires: {expiryMonth}/{expiryYear}</p>
+                <p>CVV: {maskedCVV}</p>
+              </div>
             </div>
           </div>
           
