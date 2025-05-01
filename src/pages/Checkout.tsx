@@ -15,6 +15,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { addTransaction, updateTransactionStatus } = usePayment();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentData, setPaymentData] = useState<any>(null);
 
   // Handle server-to-server payment submission
   const handleS2SSubmit = async (data: any) => {
@@ -86,18 +87,33 @@ const Checkout = () => {
     }
   };
 
+  // Function to prepare data for the iframe
+  const prepareIframeData = (data: any) => {
+    setPaymentData({
+      cardholderName: data.cardHolderName,
+      cardNumber: data.cardNumber,
+      expiryMonth: data.expiryMonth,
+      expiryYear: data.expiryYear,
+      cardCVC: data.cardCVC,
+      amount: parseFloat(data.amount),
+      currency: data.currency
+    });
+  };
+
   // Handle iframe payment status updates
   const handleIframePaymentStatus = (status: 'success' | 'failed' | 'pending', orderId: string) => {
-    // Create a transaction from the iframe payment
-    const transactionId = addTransaction({
-      cardHolderName: 'Iframe Payment',
-      cardNumber: '4111111111111111', // Placeholder data
-      expiryMonth: '12',
-      expiryYear: '2025',
-      cardCVC: '123',
-      amount: 10.00, // Default amount for demo
-      currency: 'USD'
-    });
+    // Create a transaction record with available payment data or defaults
+    const transactionData = {
+      cardHolderName: paymentData?.cardholderName || 'Iframe Payment',
+      cardNumber: paymentData?.cardNumber || '4111111111111111',
+      expiryMonth: paymentData?.expiryMonth || '12',
+      expiryYear: paymentData?.expiryYear || '2025',
+      cardCVC: paymentData?.cardCVC || '123',
+      amount: paymentData?.amount || 10.00,
+      currency: paymentData?.currency || 'USD'
+    };
+    
+    const transactionId = addTransaction(transactionData);
     
     // Update the transaction status based on iframe response
     updateTransactionStatus(transactionId, status);
@@ -106,10 +122,12 @@ const Checkout = () => {
       toast.success('Payment successful', {
         description: 'Your payment has been processed successfully'
       });
+      navigate(`/payment-status/${transactionId}/success`);
     } else if (status === 'failed') {
       toast.error('Payment failed', {
         description: 'There was an error processing your payment'
       });
+      navigate(`/payment-status/${transactionId}/failed`);
     }
   };
 
@@ -159,7 +177,19 @@ const Checkout = () => {
           </TabsContent>
           
           <TabsContent value="iframe" className="animate-fade-in">
-            <PaymentIframe onPaymentStatus={handleIframePaymentStatus} />
+            <CardForm 
+              onSubmit={prepareIframeData}
+              isSubmitting={false}
+              submitButtonText="Prepare Checkout"
+            />
+            {paymentData && (
+              <div className="mt-6">
+                <PaymentIframe 
+                  onPaymentStatus={handleIframePaymentStatus}
+                  paymentData={paymentData} 
+                />
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </main>

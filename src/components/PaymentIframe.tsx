@@ -5,9 +5,18 @@ import { generateOrderId } from '@/lib/card-validation';
 
 interface PaymentIframeProps {
   onPaymentStatus: (status: 'success' | 'failed' | 'pending', orderId: string) => void;
+  paymentData?: {
+    cardholderName?: string;
+    cardNumber?: string;
+    expiryMonth?: string;
+    expiryYear?: string;
+    cardCVC?: string;
+    amount?: number;
+    currency?: string;
+  };
 }
 
-export function PaymentIframe({ onPaymentStatus }: PaymentIframeProps) {
+export function PaymentIframe({ onPaymentStatus, paymentData }: PaymentIframeProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const orderIdRef = useRef(generateOrderId());
 
@@ -38,25 +47,32 @@ export function PaymentIframe({ onPaymentStatus }: PaymentIframeProps) {
     // Set up the iframe with initial data
     setTimeout(() => {
       if (iframeRef.current && iframeRef.current.contentWindow) {
-        const paymentData = {
+        // Format expiryDate as MM/YY if month and year are available
+        let expiryDate = '';
+        if (paymentData?.expiryMonth && paymentData?.expiryYear) {
+          const year = paymentData.expiryYear.slice(-2); // Take last two digits
+          expiryDate = `${paymentData.expiryMonth}/${year}`;
+        }
+
+        const messageData = {
           orderId: orderIdRef.current,
-          cardholder: '',
-          cardNumber: '',
-          expiryDate: '',
-          cvc: '',
-          amount: '',
-          currency: 'USD',
+          cardholder: paymentData?.cardholderName || '',
+          cardNumber: paymentData?.cardNumber || '',
+          expiryDate: expiryDate,
+          cvc: paymentData?.cardCVC || '',
+          amount: paymentData?.amount ? String(paymentData.amount) : '',
+          currency: paymentData?.currency || 'USD',
           showForm: 1
         };
 
-        iframeRef.current.contentWindow.postMessage(paymentData, 'https://celalios.com');
+        iframeRef.current.contentWindow.postMessage(messageData, 'https://celalios.com');
       }
     }, 1000);
 
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [onPaymentStatus]);
+  }, [onPaymentStatus, paymentData]);
 
   return (
     <Card>
