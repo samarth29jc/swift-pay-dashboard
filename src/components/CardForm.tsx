@@ -52,9 +52,10 @@ type CardFormValues = z.infer<typeof cardSchema>;
 interface CardFormProps {
   onSubmit: (data: CardFormValues) => Promise<void>;
   isSubmitting?: boolean;
+  submitButtonText?: string;
 }
 
-export function CardForm({ onSubmit, isSubmitting = false }: CardFormProps) {
+export function CardForm({ onSubmit, isSubmitting = false, submitButtonText = 'Pay Now' }: CardFormProps) {
   const [formattedCardNumber, setFormattedCardNumber] = useState('');
   const [showCardNumber, setShowCardNumber] = useState(false);
   const [showCVV, setShowCVV] = useState(false);
@@ -287,7 +288,7 @@ export function CardForm({ onSubmit, isSubmitting = false }: CardFormProps) {
           {isSubmitting ? (
             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
           ) : (
-            'Pay Now'
+            submitButtonText
           )}
         </Button>
       </form>
