@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -31,11 +30,7 @@ const cardSchema = z.object({
   expiryMonth: z.string()
     .regex(/^(0[1-9]|1[0-2])$/, { message: 'Month must be between 01-12' }),
   expiryYear: z.string()
-    .regex(/^(20)?[2-9][0-9]$/, { message: 'Invalid year' })
-    .refine((year, { path, input }) => {
-      const month = (input as any).expiryMonth;
-      return validateExpiryDate(month, year);
-    }, { message: 'Card is expired' }),
+    .regex(/^(20)?[2-9][0-9]$/, { message: 'Invalid year' }),
   cardCVC: z.string()
     .regex(/^\d{3,4}$/, { message: 'CVV must be 3-4 digits' }),
   amount: z.string().min(1, { message: 'Amount is required' })
@@ -43,6 +38,11 @@ const cardSchema = z.object({
       message: 'Amount must be greater than zero' 
     }),
   currency: z.string().min(1, { message: 'Currency is required' }),
+}).refine((data) => {
+  return validateExpiryDate(data.expiryMonth, data.expiryYear);
+}, {
+  message: 'Card is expired',
+  path: ['expiryYear'] // Path to the field with the error
 });
 
 type CardFormValues = z.infer<typeof cardSchema>;
